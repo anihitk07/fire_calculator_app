@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Sun, Moon, TrendingDown, DollarSign, TrendingUp, Percent, Target, Heart } from 'lucide-react';
+import { TrendingDown, DollarSign, TrendingUp, Percent, Target, Heart } from 'lucide-react';
 import InputField from './components/InputField';
 import ResultCard from './components/ResultCard';
 import ProjectionChart from './components/ProjectionChart';
@@ -8,6 +8,109 @@ import ProgressBar from './components/ProgressBar';
 
 type CalculatorMode = 'standard' | 'coast' | 'barista' | 'savingsRate' | 'reverse' | 'healthcareGap';
 type FireType = 'lean' | 'regular' | 'fat';
+
+interface ProjectionPoint {
+  year: number;
+  balance: number;
+  fireNumber: number;
+}
+
+interface SavingsRateScenario {
+  rate: number;
+  years: number;
+  annualSavings: number;
+  fireAge: number;
+}
+
+type StandardResults = {
+  mode: 'standard';
+  fireNumber: number;
+  yearsToFire: number;
+  fireAge: number;
+  finalBalance: number;
+  shortfall: number;
+  surplus: number;
+  projectionData: ProjectionPoint[];
+  onTrack: boolean;
+};
+
+type BaristaResults = {
+  mode: 'barista';
+  fireNumber: number;
+  baristaFireNumber: number;
+  expenseGap: number;
+  partTimeIncome: number;
+  currentShortfall: number;
+  currentSurplus: number;
+  finalBalance: number;
+  projectionData: ProjectionPoint[];
+  hasReachedBarista: boolean;
+  yearsToBarista: number;
+  baristaAge: number;
+};
+
+type CoastResults = {
+  mode: 'coast';
+  fireNumber: number;
+  coastFireNumber: number;
+  currentShortfall: number;
+  currentSurplus: number;
+  finalBalance: number;
+  projectionData: ProjectionPoint[];
+  hasReachedCoast: boolean;
+  yearsUntilRetirement: number;
+};
+
+type SavingsRateResults = {
+  mode: 'savingsRate';
+  fireNumber: number;
+  annualIncome: number;
+  currentSavingsRate: number;
+  savingsRateScenarios: SavingsRateScenario[];
+  yearsToFire: number;
+  fireAge: number;
+  projectionData: ProjectionPoint[];
+};
+
+type ReverseResults = {
+  mode: 'reverse';
+  fireNumber: number;
+  targetRetirementAge: number;
+  yearsUntilTarget: number;
+  requiredAnnualSavings: number;
+  currentAnnualSavings: number;
+  savingsGap: number;
+  isAchievable: boolean;
+  savingsRateNeeded: number;
+  finalBalance: number;
+  projectionData: ProjectionPoint[];
+};
+
+type HealthcareGapResults = {
+  mode: 'healthcareGap';
+  fireNumber: number;
+  adjustedFireNumber: number;
+  earlyRetirementAge: number;
+  medicareAge: number;
+  gapYears: number;
+  monthlyPremium: number;
+  annualHealthcareCost: number;
+  totalHealthcareCost: number;
+  healthcarePortionOfFire: number;
+  hasGap: boolean;
+  yearsToFire: number;
+  fireAge: number;
+  finalBalance: number;
+  projectionData: ProjectionPoint[];
+};
+
+type CalculatorResults =
+  | StandardResults
+  | BaristaResults
+  | CoastResults
+  | SavingsRateResults
+  | ReverseResults
+  | HealthcareGapResults;
 
 const getFireType = (annualExpenses: number): FireType => {
   if (annualExpenses <= 40000) return 'lean';
@@ -97,7 +200,6 @@ const DEFAULT_INPUTS: CalculatorInputs = {
 };
 
 function App() {
-  const [darkMode, setDarkMode] = useState(true); // Default to dark mode
   const [calculatorMode, setCalculatorMode] = useState<CalculatorMode>('standard');
   const [inputs, setInputs] = useState<CalculatorInputs>(DEFAULT_INPUTS);
   
@@ -155,17 +257,14 @@ function App() {
     return () => clearTimeout(timer);
   }, [inputs, calculatorMode]);
 
-  // Toggle dark mode
+  // Force dark mode for entire experience
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+    document.documentElement.classList.add('dark');
+    return () => document.documentElement.classList.remove('dark');
+  }, []);
 
   // Calculate FIRE metrics
-  const results = useMemo(() => {
+  const results = useMemo<CalculatorResults>(() => {
     const fireNumber = inputs.annualExpenses * 25;
     const yearsToRetirement = inputs.retirementAge - inputs.currentAge;
     const returnRate = inputs.investmentReturn / 100;
@@ -197,7 +296,7 @@ function App() {
       const currentSavingsRate = (inputs.annualSavings / annualIncome) * 100;
       
       // Projection data for current savings rate
-      const projectionData = [];
+      const projectionData: ProjectionPoint[] = [];
       let balance = inputs.currentSavings;
       let yearsToFire = 0;
       let fireBalance = inputs.currentSavings;
@@ -243,7 +342,7 @@ function App() {
       const isAchievable = requiredAnnualSavings > 0 && requiredAnnualSavings < 1000000;
       
       // Projection data
-      const projectionData = [];
+      const projectionData: ProjectionPoint[] = [];
       let balance = inputs.currentSavings;
       
       for (let year = 0; year <= yearsUntilTarget; year++) {
@@ -290,7 +389,7 @@ function App() {
       const adjustedFireNumber = fireNumber + totalHealthcareCost;
       
       // Projection with healthcare costs factored in
-      const projectionData = [];
+      const projectionData: ProjectionPoint[] = [];
       let balance = inputs.currentSavings;
       let yearsToFire = 0;
       let fireBalance = inputs.currentSavings;
@@ -340,7 +439,7 @@ function App() {
       const currentSurplus = Math.max(0, inputs.currentSavings - baristaFireNumber);
       
       // Calculate projection with continued savings until Barista FIRE
-      const projectionData = [];
+      const projectionData: ProjectionPoint[] = [];
       let balance = inputs.currentSavings;
       
       for (let year = 0; year <= yearsToRetirement; year++) {
@@ -388,7 +487,7 @@ function App() {
       const currentSurplus = Math.max(0, inputs.currentSavings - coastFireNumber);
       
       // Calculate projection with NO additional contributions
-      const projectionData = [];
+      const projectionData: ProjectionPoint[] = [];
       let balance = inputs.currentSavings;
       
       for (let year = 0; year <= yearsToRetirement; year++) {
@@ -419,7 +518,7 @@ function App() {
       };
     } else {
       // Standard FIRE calculation
-      const projectionData = [];
+      const projectionData: ProjectionPoint[] = [];
       let balance = inputs.currentSavings;
       
       for (let year = 0; year <= yearsToRetirement; year++) {
@@ -535,20 +634,6 @@ function App() {
               >
                 <span className="text-lg">🏖️</span>
                 Coast FIRE
-              </button>
-              <button
-                onClick={() => setCalculatorMode('lean')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800`}
-              >
-                <span className="text-lg">🌱</span>
-                Lean FIRE
-              </button>
-              <button
-                onClick={() => setCalculatorMode('fat')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-gray-400 hover:text-white hover:bg-gray-800`}
-              >
-                <span className="text-lg">💎</span>
-                Fat FIRE
               </button>
               <button
                 onClick={() => setCalculatorMode('barista')}
@@ -811,7 +896,7 @@ function App() {
               {/* Results Section */}
               <div className="lg:col-span-2 space-y-6">
                 {/* Key Metrics */}
-                {calculatorMode === 'savingsRate' ? (
+                {results.mode === 'savingsRate' && (
                   <>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <ResultCard
@@ -822,14 +907,14 @@ function App() {
                       />
                       <ResultCard
                         title="Current Savings Rate"
-                        value={`${'currentSavingsRate' in results ? results.currentSavingsRate.toFixed(1) : 0}%`}
-                        description={`Annual income: $${'annualIncome' in results ? Math.round(results.annualIncome).toLocaleString() : 0}`}
+                        value={`${results.currentSavingsRate.toFixed(1)}%`}
+                        description={`Annual income: $${Math.round(results.annualIncome).toLocaleString()}`}
                         variant="primary"
                       />
                       <ResultCard
                         title="Years to FIRE"
-                        value={'yearsToFire' in results ? results.yearsToFire : 0}
-                        description={`FIRE at age ${'fireAge' in results ? results.fireAge : 0}`}
+                        value={results.yearsToFire}
+                        description={`FIRE at age ${results.fireAge}`}
                         variant="success"
                       />
                       <ResultCard
@@ -839,7 +924,6 @@ function App() {
                         variant="success"
                       />
                     </div>
-                    {/* Savings Rate Scenarios Table */}
                     <div className="bg-[#1a1f2e] rounded-xl border border-gray-800 p-6">
                       <h3 className="text-white font-semibold mb-4">Savings Rate Impact</h3>
                       <div className="overflow-x-auto">
@@ -853,7 +937,7 @@ function App() {
                             </tr>
                           </thead>
                           <tbody className="text-gray-300">
-                            {'savingsRateScenarios' in results && results.savingsRateScenarios.map((scenario) => (
+                            {results.savingsRateScenarios.map((scenario) => (
                               <tr key={scenario.rate} className="border-b border-gray-800/50">
                                 <td className="py-3 font-semibold">{scenario.rate}%</td>
                                 <td className="py-3">${Math.round(scenario.annualSavings).toLocaleString()}</td>
@@ -865,14 +949,12 @@ function App() {
                         </table>
                       </div>
                     </div>
-                    <ProgressBar 
-                      current={inputs.currentSavings} 
-                      target={results.fireNumber} 
-                      label="Progress to FIRE" 
-                    />
+                    <ProgressBar current={inputs.currentSavings} target={results.fireNumber} label="Progress to FIRE" />
                     <Disclaimer />
                   </>
-                ) : calculatorMode === 'reverse' ? (
+                )}
+
+                {results.mode === 'reverse' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ResultCard
                       title="FIRE Number"
@@ -882,175 +964,162 @@ function App() {
                     />
                     <ResultCard
                       title="Target Retirement Age"
-                      value={'targetRetirementAge' in results ? results.targetRetirementAge : 0}
-                      description={`In ${'yearsUntilTarget' in results ? results.yearsUntilTarget : 0} years`}
+                      value={results.targetRetirementAge}
+                      description={`In ${results.yearsUntilTarget} years`}
                       variant="primary"
                     />
                     <ResultCard
                       title="Required Annual Savings"
-                      value={`$${'requiredAnnualSavings' in results ? Math.round(results.requiredAnnualSavings).toLocaleString() : 0}`}
-                      description={`Savings rate: ${'savingsRateNeeded' in results ? results.savingsRateNeeded.toFixed(1) : 0}%`}
-                      variant={'isAchievable' in results && results.isAchievable ? 'success' : 'warning'}
+                      value={`$${Math.round(results.requiredAnnualSavings).toLocaleString()}`}
+                      description={`Savings rate: ${results.savingsRateNeeded.toFixed(1)}%`}
+                      variant={results.isAchievable ? 'success' : 'warning'}
                     />
                     <ResultCard
                       title="Current Annual Savings"
-                      value={`$${'currentAnnualSavings' in results ? results.currentAnnualSavings.toLocaleString() : 0}`}
-                      description={`Gap: $${'savingsGap' in results ? Math.round(results.savingsGap).toLocaleString() : 0}`}
-                      variant={'isAchievable' in results && results.savingsGap <= 0 ? 'success' : 'warning'}
+                      value={`$${results.currentAnnualSavings.toLocaleString()}`}
+                      description={`Gap: $${Math.round(results.savingsGap).toLocaleString()}`}
+                      variant={results.savingsGap <= 0 ? 'success' : 'warning'}
                     />
-                    <ProgressBar 
-                      current={inputs.currentSavings} 
-                      target={results.fireNumber} 
-                      label="Progress to FIRE" 
-                    />
+                    <ProgressBar current={inputs.currentSavings} target={results.fireNumber} label="Progress to FIRE" />
                     <Disclaimer />
                   </div>
-                ) : calculatorMode === 'healthcareGap' ? (
+                )}
+
+                {results.mode === 'healthcareGap' && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <ResultCard
                       title="Healthcare Gap Years"
-                      value={'gapYears' in results ? results.gapYears : 0}
-                      description={`From age ${'earlyRetirementAge' in results ? results.earlyRetirementAge : 0} to ${'medicareAge' in results ? results.medicareAge : 0}`}
+                      value={results.gapYears}
+                      description={`From age ${results.earlyRetirementAge} to ${results.medicareAge}`}
                       variant="primary"
                     />
                     <ResultCard
                       title="Monthly Premium"
-                      value={`$${'monthlyPremium' in results ? results.monthlyPremium.toLocaleString() : 0}`}
-                      description={`$${'annualHealthcareCost' in results ? results.annualHealthcareCost.toLocaleString() : 0}/year`}
+                      value={`$${results.monthlyPremium.toLocaleString()}`}
+                      description={`$${results.annualHealthcareCost.toLocaleString()}/year`}
                       variant="primary"
                     />
                     <ResultCard
                       title="Total Healthcare Cost"
-                      value={`$${'totalHealthcareCost' in results ? Math.round(results.totalHealthcareCost).toLocaleString() : 0}`}
-                      description={`${'healthcarePortionOfFire' in results ? results.healthcarePortionOfFire.toFixed(1) : 0}% of FIRE portfolio`}
+                      value={`$${Math.round(results.totalHealthcareCost).toLocaleString()}`}
+                      description={`${results.healthcarePortionOfFire.toFixed(1)}% of FIRE portfolio`}
                       variant="warning"
                     />
                     <ResultCard
                       title="Adjusted FIRE Number"
-                      value={`$${'adjustedFireNumber' in results ? Math.round(results.adjustedFireNumber).toLocaleString() : 0}`}
-                      description={`Including healthcare costs`}
+                      value={`$${Math.round(results.adjustedFireNumber).toLocaleString()}`}
+                      description="Including healthcare costs"
                       variant="primary"
                     />
-                    <ProgressBar 
-                      current={inputs.currentSavings} 
-                      target={'adjustedFireNumber' in results ? results.adjustedFireNumber : results.fireNumber} 
-                      label="Progress to Adjusted FIRE" 
-                    />
+                    <ProgressBar current={inputs.currentSavings} target={results.adjustedFireNumber} label="Progress to Adjusted FIRE" />
                     <Disclaimer />
                   </div>
-                ) : calculatorMode === 'standard' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ResultCard
-                  title="FIRE Number"
-                  value={`$${results.fireNumber.toLocaleString()}`}
-                  description="25x your annual expenses"
-                  variant="primary"
-                />
-                <ResultCard
-                  title="Years to FIRE"
-                  value={'yearsToFire' in results ? results.yearsToFire : 0}
-                  description={`You'll reach FIRE at age ${'fireAge' in results ? results.fireAge : 0}`}
-                  variant="success"
-                />
-                <ResultCard
-                  title="Projected Balance"
-                  value={`$${results.finalBalance.toLocaleString()}`}
-                  description={`At age ${inputs.retirementAge}`}
-                  variant={'onTrack' in results && results.onTrack ? 'success' : 'warning'}
-                />
-                <ResultCard
-                  title={'onTrack' in results && results.onTrack ? 'Surplus' : 'Shortfall'}
-                  value={`$${('onTrack' in results && results.onTrack ? results.surplus : results.shortfall).toLocaleString()}`}
-                  description={'onTrack' in results && results.onTrack ? 'Extra cushion' : 'Additional savings needed'}
-                  variant={'onTrack' in results && results.onTrack ? 'success' : 'warning'}
-                />
-                <ProgressBar 
-                  current={inputs.currentSavings} 
-                  target={results.fireNumber} 
-                  label="Progress to FIRE" 
-                />
-                <Disclaimer />
-              </div>
-            ) : calculatorMode === 'barista' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ResultCard
-                  title="Barista FIRE Number"
-                  value={`$${'baristaFireNumber' in results ? results.baristaFireNumber.toLocaleString() : 0}`}
-                  description="Your reduced portfolio target"
-                  variant="primary"
-                />
-                <ResultCard
-                  title="Years to Barista FIRE"
-                  value={'yearsToBarista' in results ? results.yearsToBarista : 0}
-                  description={`Reach Barista FIRE at age ${'baristaAge' in results ? results.baristaAge : 0}`}
-                  variant="success"
-                />
-                <ResultCard
-                  title="Part-Time Income"
-                  value={`$${'partTimeIncome' in results ? results.partTimeIncome.toLocaleString() : 0}`}
-                  description={`Covers ${'expenseGap' in results ? ((results.partTimeIncome / inputs.annualExpenses) * 100).toFixed(0) : 0}% of expenses`}
-                  variant="success"
-                />
-                <ResultCard
-                  title={'hasReachedBarista' in results && results.hasReachedBarista ? 'Ready!' : 'Needed'}
-                  value={`$${('hasReachedBarista' in results && results.hasReachedBarista ? results.currentSurplus : results.currentShortfall).toLocaleString()}`}
-                  description={'hasReachedBarista' in results && results.hasReachedBarista ? 'You can start Barista FIRE!' : 'Additional savings needed'}
-                  variant={'hasReachedBarista' in results && results.hasReachedBarista ? 'success' : 'warning'}
-                />
-                <ProgressBar 
-                  current={inputs.currentSavings} 
-                  target={'baristaFireNumber' in results ? results.baristaFireNumber : results.fireNumber} 
-                  label="Progress to Barista FIRE" 
-                />
-                <Disclaimer />
-              </div>
-            ) : calculatorMode === 'coast' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <ResultCard
-                  title="FIRE Number"
-                  value={`$${results.fireNumber.toLocaleString()}`}
-                  description="25x your annual expenses"
-                  variant="primary"
-                />
-                <ResultCard
-                  title="Coast FIRE Number"
-                  value={`$${'coastFireNumber' in results ? Math.round(results.coastFireNumber).toLocaleString() : 0}`}
-                  description="What you need saved NOW"
-                  variant="primary"
-                />
-                <ResultCard
-                  title="Current Savings"
-                  value={`$${inputs.currentSavings.toLocaleString()}`}
-                  description={'hasReachedCoast' in results && results.hasReachedCoast ? 'You\'ve reached Coast FIRE!' : 'Keep saving to reach Coast'}
-                  variant={'hasReachedCoast' in results && results.hasReachedCoast ? 'success' : 'warning'}
-                />
-                <ResultCard
-                  title={'hasReachedCoast' in results && results.hasReachedCoast ? 'Surplus' : 'Needed'}
-                  value={`$${('hasReachedCoast' in results && results.hasReachedCoast ? Math.round(results.currentSurplus) : Math.round(results.currentShortfall)).toLocaleString()}`}
-                  description={'hasReachedCoast' in results && results.hasReachedCoast ? 'Extra cushion above Coast' : 'Additional savings to reach Coast'}
-                  variant={'hasReachedCoast' in results && results.hasReachedCoast ? 'success' : 'warning'}
-                />
-                <ProgressBar 
-                  current={inputs.currentSavings} 
-                  target={'coastFireNumber' in results ? results.coastFireNumber : results.fireNumber} 
-                  label="Progress to Coast FIRE" 
-                />
-                <Disclaimer />
-              </div>
-            ) : null}
+                )}
 
+                {results.mode === 'standard' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <ResultCard
+                      title="FIRE Number"
+                      value={`$${results.fireNumber.toLocaleString()}`}
+                      description="25x your annual expenses"
+                      variant="primary"
+                    />
+                    <ResultCard
+                      title="Years to FIRE"
+                      value={results.yearsToFire}
+                      description={`You'll reach FIRE at age ${results.fireAge}`}
+                      variant="success"
+                    />
+                    <ResultCard
+                      title="Projected Balance"
+                      value={`$${results.finalBalance.toLocaleString()}`}
+                      description={`At age ${inputs.retirementAge}`}
+                      variant={results.onTrack ? 'success' : 'warning'}
+                    />
+                    <ResultCard
+                      title={results.onTrack ? 'Surplus' : 'Shortfall'}
+                      value={`$${(results.onTrack ? results.surplus : results.shortfall).toLocaleString()}`}
+                      description={results.onTrack ? 'Extra cushion' : 'Additional savings needed'}
+                      variant={results.onTrack ? 'success' : 'warning'}
+                    />
+                    <ProgressBar current={inputs.currentSavings} target={results.fireNumber} label="Progress to FIRE" />
+                    <Disclaimer />
+                  </div>
+                )}
+
+                {results.mode === 'barista' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <ResultCard
+                      title="Barista FIRE Number"
+                      value={`$${results.baristaFireNumber.toLocaleString()}`}
+                      description="Your reduced portfolio target"
+                      variant="primary"
+                    />
+                    <ResultCard
+                      title="Years to Barista FIRE"
+                      value={results.yearsToBarista}
+                      description={`Reach Barista FIRE at age ${results.baristaAge}`}
+                      variant="success"
+                    />
+                    <ResultCard
+                      title="Part-Time Income"
+                      value={`$${results.partTimeIncome.toLocaleString()}`}
+                      description={`Covers ${((results.partTimeIncome / inputs.annualExpenses) * 100).toFixed(0)}% of expenses`}
+                      variant="success"
+                    />
+                    <ResultCard
+                      title={results.hasReachedBarista ? 'Ready!' : 'Needed'}
+                      value={`$${(results.hasReachedBarista ? results.currentSurplus : results.currentShortfall).toLocaleString()}`}
+                      description={results.hasReachedBarista ? 'You can start Barista FIRE!' : 'Additional savings needed'}
+                      variant={results.hasReachedBarista ? 'success' : 'warning'}
+                    />
+                    <ProgressBar current={inputs.currentSavings} target={results.baristaFireNumber} label="Progress to Barista FIRE" />
+                    <Disclaimer />
+                  </div>
+                )}
+
+                {results.mode === 'coast' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <ResultCard
+                      title="FIRE Number"
+                      value={`$${results.fireNumber.toLocaleString()}`}
+                      description="25x your annual expenses"
+                      variant="primary"
+                    />
+                    <ResultCard
+                      title="Coast FIRE Number"
+                      value={`$${Math.round(results.coastFireNumber).toLocaleString()}`}
+                      description="What you need saved NOW"
+                      variant="primary"
+                    />
+                    <ResultCard
+                      title="Current Savings"
+                      value={`$${inputs.currentSavings.toLocaleString()}`}
+                      description={results.hasReachedCoast ? "You've reached Coast FIRE!" : 'Keep saving to reach Coast'}
+                      variant={results.hasReachedCoast ? 'success' : 'warning'}
+                    />
+                    <ResultCard
+                      title={results.hasReachedCoast ? 'Surplus' : 'Needed'}
+                      value={`$${(results.hasReachedCoast ? Math.round(results.currentSurplus) : Math.round(results.currentShortfall)).toLocaleString()}`}
+                      description={results.hasReachedCoast ? 'Extra cushion above Coast' : 'Additional savings to reach Coast'}
+                      variant={results.hasReachedCoast ? 'success' : 'warning'}
+                    />
+                    <ProgressBar current={inputs.currentSavings} target={results.coastFireNumber} label="Progress to Coast FIRE" />
+                    <Disclaimer />
+                  </div>
+                )}
                 {/* Projection Chart */}
                 <div className="bg-[#1a1f2e] rounded-xl border border-gray-800 p-6">
                   <h3 className="text-white font-semibold mb-4">
-                    {calculatorMode === 'standard'
+                    {results.mode === 'standard'
                       ? 'Savings Projection'
-                      : calculatorMode === 'barista'
+                      : results.mode === 'barista'
                       ? 'Barista FIRE Growth Projection'
-                      : calculatorMode === 'coast'
+                      : results.mode === 'coast'
                       ? 'Coast FIRE Growth (No Contributions)'
-                      : calculatorMode === 'savingsRate'
+                      : results.mode === 'savingsRate'
                       ? 'Savings Growth at Current Rate'
-                      : calculatorMode === 'reverse'
+                      : results.mode === 'reverse'
                       ? 'Path to Target Retirement'
                       : 'Adjusted FIRE Projection'}
                   </h3>
@@ -1059,100 +1128,91 @@ function App() {
 
                 {/* Explanation */}
                 <div className="bg-orange-500/10 rounded-xl border border-orange-500/20 p-6">
-              {calculatorMode === 'savingsRate' ? (
+              {results.mode === 'savingsRate' ? (
                 <>
-                  <h3 className="font-semibold text-orange-500 mb-2">
-                    About Savings Rate
-                  </h3>
+                  <h3 className="font-semibold text-orange-500 mb-2">About Savings Rate</h3>
                   <p className="text-sm text-gray-300">
-                    Your savings rate is the most powerful lever for FIRE. The table above shows how different 
-                    savings rates dramatically impact your timeline. At a {'currentSavingsRate' in results ? results.currentSavingsRate.toFixed(1) : 0}% 
-                    savings rate, you'll reach FIRE in <strong className="text-white">{'yearsToFire' in results ? results.yearsToFire : 0} years</strong>. 
-                    Increasing your savings rate by just 10% can shave years off your journey!
+                    Your savings rate is the most powerful lever for FIRE. The table above shows how different savings
+                    rates dramatically impact your timeline. At a {results.currentSavingsRate.toFixed(1)}% savings rate,
+                    you'll reach FIRE in <strong className="text-white">{results.yearsToFire} years</strong>. Increasing your
+                    savings rate by just 10% can shave years off your journey!
                   </p>
                 </>
-              ) : calculatorMode === 'reverse' ? (
+              ) : results.mode === 'reverse' ? (
                 <>
-                  <h3 className="font-semibold text-orange-500 mb-2">
-                    About Reverse FIRE
-                  </h3>
+                  <h3 className="font-semibold text-orange-500 mb-2">About Reverse FIRE</h3>
                   <p className="text-sm text-gray-300">
-                    Working backwards from your target retirement age of <strong className="text-white">{'targetRetirementAge' in results ? results.targetRetirementAge : 0}</strong>, 
-                    you need to save <strong className="text-white">${'requiredAnnualSavings' in results ? Math.round(results.requiredAnnualSavings).toLocaleString() : 0}</strong> per year. 
-                    {'isAchievable' in results && !results.isAchievable ? (
-                      <> This may not be achievable with your current situation. Consider adjusting your target retirement age, 
-                      increasing current savings, or reducing annual expenses.</>
-                    ) : (
-                      <> This represents a savings rate of <strong className="text-white">{'savingsRateNeeded' in results ? results.savingsRateNeeded.toFixed(1) : 0}%</strong>.</>
-                    )}
-                  </p>
-                </>
-              ) : calculatorMode === 'healthcareGap' ? (
-                <>
-                  <h3 className="font-semibold text-orange-500 mb-2">
-                    About Healthcare Gap
-                  </h3>
-                  <p className="text-sm text-gray-300">
-                    {'hasGap' in results && results.hasGap ? (
+                    Working backwards from your target retirement age of <strong className="text-white">{results.targetRetirementAge}</strong>, you need to save
+                    <strong className="text-white"> ${Math.round(results.requiredAnnualSavings).toLocaleString()}</strong> per year.
+                    {results.isAchievable ? (
                       <>
-                        Retiring at age <strong className="text-white">{'earlyRetirementAge' in results ? results.earlyRetirementAge : 0}</strong> means 
-                        <strong className="text-white"> {'gapYears' in results ? results.gapYears : 0} years</strong> until Medicare eligibility at 65. 
-                        At <strong className="text-white">${'monthlyPremium' in results ? results.monthlyPremium.toLocaleString() : 0}/month</strong>, 
-                        your total healthcare cost will be <strong className="text-white">${'totalHealthcareCost' in results ? Math.round(results.totalHealthcareCost).toLocaleString() : 0}</strong>. 
-                        This is <strong className="text-white">{'healthcarePortionOfFire' in results ? results.healthcarePortionOfFire.toFixed(1) : 0}%</strong> of 
-                        your FIRE portfolio—a critical factor in early retirement planning.
+                        {' '}This represents a savings rate of <strong className="text-white">{results.savingsRateNeeded.toFixed(1)}%</strong>.
                       </>
                     ) : (
                       <>
-                        Your target retirement age is at or after 65, so you won't have a healthcare gap before Medicare eligibility. 
+                        {' '}This may not be achievable with your current situation. Consider adjusting your target retirement age,
+                        increasing current savings, or reducing annual expenses.
+                      </>
+                    )}
+                  </p>
+                </>
+              ) : results.mode === 'healthcareGap' ? (
+                <>
+                  <h3 className="font-semibold text-orange-500 mb-2">About Healthcare Gap</h3>
+                  <p className="text-sm text-gray-300">
+                    {results.hasGap ? (
+                      <>
+                        Retiring at age <strong className="text-white">{results.earlyRetirementAge}</strong> means
+                        <strong className="text-white"> {results.gapYears} years</strong> until Medicare eligibility at 65. At
+                        <strong className="text-white"> ${results.monthlyPremium.toLocaleString()}/month</strong>, your total healthcare cost will be
+                        <strong className="text-white"> ${Math.round(results.totalHealthcareCost).toLocaleString()}</strong>. This is
+                        <strong className="text-white"> {results.healthcarePortionOfFire.toFixed(1)}%</strong> of your FIRE portfolio—a critical factor in
+                        early retirement planning.
+                      </>
+                    ) : (
+                      <>
+                        Your target retirement age is at or after 65, so you won't have a healthcare gap before Medicare eligibility.
                         You'll be able to enroll in Medicare immediately upon retirement.
                       </>
                     )}
                   </p>
                 </>
-              ) : calculatorMode === 'standard' ? (
+              ) : results.mode === 'standard' ? (
                 <>
-                  <h3 className="font-semibold text-orange-500 mb-2">
-                    About the 25x Rule
-                  </h3>
+                  <h3 className="font-semibold text-orange-500 mb-2">About the 25x Rule</h3>
                   <p className="text-sm text-gray-300">
-                    The FIRE movement uses the "25x rule" based on the 4% safe withdrawal rate. 
-                    If you have 25 times your annual expenses saved, you can withdraw 4% per year 
-                    indefinitely. Your FIRE number is <strong className="text-white">${results.fireNumber.toLocaleString()}</strong> 
-                    (25 × ${inputs.annualExpenses.toLocaleString()}).
+                    The FIRE movement uses the "25x rule" based on the 4% safe withdrawal rate. If you have 25 times your annual
+                    expenses saved, you can withdraw 4% per year indefinitely. Your FIRE number is
+                    <strong className="text-white"> ${results.fireNumber.toLocaleString()}</strong> (25 × ${inputs.annualExpenses.toLocaleString()}).
                   </p>
                 </>
-              ) : calculatorMode === 'barista' ? (
+              ) : results.mode === 'barista' ? (
                 <>
-                  <h3 className="font-semibold text-orange-500 mb-2">
-                    About Barista FIRE
-                  </h3>
+                  <h3 className="font-semibold text-orange-500 mb-2">About Barista FIRE</h3>
                   <p className="text-sm text-gray-300">
-                    Barista FIRE means working part-time to cover some expenses while your portfolio covers the rest. 
-                    With part-time income of <strong className="text-white">${'partTimeIncome' in results ? results.partTimeIncome.toLocaleString() : 0}</strong>, 
-                    you only need <strong className="text-white">${'baristaFireNumber' in results ? results.baristaFireNumber.toLocaleString() : 0}</strong> saved 
-                    (25x the <strong className="text-white">${'expenseGap' in results ? results.expenseGap.toLocaleString() : 0}</strong> gap). 
-                    This is much faster than traditional FIRE and often includes health insurance benefits!
+                    Barista FIRE means working part-time to cover some expenses while your portfolio covers the rest. With part-time
+                    income of <strong className="text-white">${results.partTimeIncome.toLocaleString()}</strong>, you only need
+                    <strong className="text-white"> ${results.baristaFireNumber.toLocaleString()}</strong> saved (25x the
+                    <strong className="text-white"> ${results.expenseGap.toLocaleString()}</strong> gap). This is much faster than traditional FIRE and often
+                    includes health insurance benefits!
                   </p>
                 </>
-              ) : (
+              ) : results.mode === 'coast' ? (
                 <>
-                  <h3 className="font-semibold text-orange-500 mb-2">
-                    About Coast FIRE
-                  </h3>
+                  <h3 className="font-semibold text-orange-500 mb-2">About Coast FIRE</h3>
                   <p className="text-sm text-gray-300">
-                    Coast FIRE means you have enough saved NOW that compound growth will reach your FIRE number 
-                    by retirement—without any additional contributions. Your Coast FIRE number is{' '}
-                    <strong className="text-white">${'coastFireNumber' in results ? Math.round(results.coastFireNumber).toLocaleString() : 0}</strong>.{' '}
-                    {('yearsUntilRetirement' in results && results.yearsUntilRetirement > 0) && (
+                    Coast FIRE means you have enough saved NOW that compound growth will reach your FIRE number by retirement—without
+                    any additional contributions. Your Coast FIRE number is
+                    <strong className="text-white"> ${Math.round(results.coastFireNumber).toLocaleString()}</strong>.
+                    {results.yearsUntilRetirement > 0 && (
                       <>
-                        Over {results.yearsUntilRetirement} years at {inputs.investmentReturn}% return, this grows to your 
-                        FIRE goal of ${results.fireNumber.toLocaleString()}.
+                        {' '}Over {results.yearsUntilRetirement} years at {inputs.investmentReturn}% return, this grows to your FIRE goal of
+                        ${results.fireNumber.toLocaleString()}.
                       </>
                     )}
                   </p>
                 </>
-              )}
+              ) : null}
             </div>
 
                 {/* FIRE Type Tips & Warnings */}
